@@ -1,0 +1,74 @@
+services:
+  server:
+    image: instay_v2:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    init: true 
+    env_file:
+      - ./backend/.env.local
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - backend
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.server.rule: PathPrefix(`${SV_API_PREFIX}`)
+      traefik.http.middlewares.server-strip.stripprefix.prefixes: ${SV_API_PREFIX}
+    volumes:
+      - ./backend/logs:/app/logs
+    command: ./server
+    container_name: instay_v2-server
+  
+  consumer:
+    image: instay_v2:latest
+    init: true 
+    env_file:
+      - ./backend/.env.local
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - ./backend/logs:/app/logs
+    command: ./consumer
+    container_name: instay_v2-consumer
+    depends_on:
+      server:
+        condition: service_healthy
+  
+  scheduler:
+    image: instay_v2:latest
+    init: true 
+    env_file:
+      - ./backend/.env.local
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - ./backend/logs:/app/logs
+    command: ./scheduler
+    container_name: instay_v2-scheduler
+    depends_on:
+      server:
+        condition: service_healthy
+
+  seeder:
+    image: instay_v2:latest
+    init: true 
+    env_file:
+      - ./backend/.env.local
+    restart: "no"
+    networks:
+      - backend
+    volumes:
+      - ./backend/logs:/app/logs
+    command: ./seeder
+    container_name: instay_v2-seeder
+    depends_on:
+      server:
+        condition: service_healthy
+
+networks:
+  backend:
+    driver: bridge
